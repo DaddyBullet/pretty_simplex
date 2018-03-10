@@ -20,7 +20,7 @@ struct SymplexTable{
 	uint32_t x_base_cols;
 	uint32_t x_base_cols_i;
 	uint32_t base_rows;
-	uint8_t mode;
+	int8_t mode;
 	uint32_t simplex_diference; // row index
 	uint8_t ready_to_use;
 
@@ -35,6 +35,7 @@ int parseSimplexFile(struct SymplexTable *st, FILE* simplex_file, char delim);
 uint32_t calcDimention(char *line, char delim);
 char*** separateText(char ***text_p, size_t rows, char delimiter);
 char* cutDelim(char **line_p, char delimiter);
+double findMax(double* arr, size_t size);
 
 int main(int argn, char *args[])
 {
@@ -82,7 +83,7 @@ int parseSimplexFile(struct SymplexTable *st, FILE* sf, char delim)
 	getdelim(&line, &len, delim, sf);
 	cutDelim(&line, delim);// cut delimiter
 	if(!strcmp(line, "max"))
-		st->mode = 0;
+		st->mode = -1;
 	else if(!strcmp(line, "min"))
 		st->mode = 1;
 	else
@@ -134,17 +135,35 @@ int parseSimplexFile(struct SymplexTable *st, FILE* sf, char delim)
 	for(int i=0; i<st->rows; i++)
 		st->whole_matrix[i] = (double*)calloc(st->cols, sizeof(double));
 	st->base_indexes = (uint32_t*)calloc(st->base_rows, sizeof(uint32_t));
-	st->func_vector = (double*)calloc(st->cols-1, sizeof(double)); // -1 for definitions
+	st->func_vector = (double*)calloc(st->cols, sizeof(double));
+	st->func_vector[0] = (double)st->mode; // not really used, but it will align data
 
+	for(int i=1; i<st->init_cols+1; i++)
+		st->func_vector[i] = atof(sep_text[0][i]);
+	st->M = findMax(st->func_vector, st->base_cols)*1e6*st->mode;
+	int x_basis_counter = 0;
 	for(int i=1; i<st->rows; i++)
 	{
-		for(int j=0; j<st->init_cols+2; j++)
-		{
+		st->whole_matrix[i-1][0] = atof(sep_text[i][st->init_cols+1]);
+		for(int j=0; j<st->init_cols; j++)
 			st->whole_matrix[i-1][j+1] = atof(sep_text[i][j]);
-		}
+		st->whole_matrix[i-1][st->base_cols_i+i-1] = 1;
+		if(strcmp("<=", sep_text[i][st->init_cols]))
+			st->func_vector[st->base_cols_i+i-1] = st->M;
+		if(!strcmp(">=", sep_text[i][st->init_cols]))
+			st->whole_matrix[i-1][st->x_base_cols_i+x_basis_counter++] = -1;
 	}
-
-
+	for(int i=0; i<st->base_rows; i++)
+		st->base_indexes[i] = st->base_cols_i + i;
+	st->whole_matrix[st->base_rows][0] = 0;
+	for(int j=0; j<st->base_rows; j++)
+		st->whole_matrix[st->base_rows][0]+=st->func_vector[st->base_indexes[j]]*st->whole_matrix[j][0];
+	for(int i=1; i<st->cols; i++)
+	{
+		st->whole_matrix[st->base_rows][i] = -st->func_vector[i];
+		for(int j=0; j<st->base_rows; j++)
+			st->whole_matrix[st->base_rows][i]+=st->func_vector[st->base_indexes[j]]*st->whole_matrix[j][i];
+	}
 
 	// Free dat space
 	if(st_info)
@@ -210,5 +229,14 @@ char* cutDelim(char **line_p, char delimiter)
 	i++;
 	}
 	return line;
+}
+
+double findMax(double* arr, size_t size)
+{
+	double max = 0;
+	for(int i=0; i<size; i++)
+		if(abs(arr[i]) > max)
+			max = abs(arr[i]);
+	return max;
 }
 
