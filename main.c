@@ -10,7 +10,7 @@
 #include <string.h>
 #include <stdint.h>
 
-struct SymplexTable{
+struct SimplexTable{
 	uint32_t rows;
 	uint32_t cols;
 	uint32_t init_cols;
@@ -23,19 +23,27 @@ struct SymplexTable{
 	int8_t mode;
 	uint32_t simplex_diference; // row index
 	uint8_t ready_to_use;
-
+	uint16_t last_table_i;
+	uint16_t tables_quan;
 
 	double M;
-	double **whole_matrix;
+	double ***tables;
+	double **last_table;
 	double *func_vector;
+	uint32_t **base_indexes_table;
 	uint32_t *base_indexes;
 }st;
 
-int parseSimplexFile(struct SymplexTable *st, FILE* simplex_file, char delim);
+int parseSimplexFile(struct SimplexTable *st, FILE* simplex_file, char delim);
 uint32_t calcDimention(char *line, char delim);
 char*** separateText(char ***text_p, size_t rows, char delimiter);
 char* cutDelim(char **line_p, char delimiter);
 double findMax(double* arr, size_t size);
+
+int getNextSimplexTable(struct SimplexTable *st);
+uint32_t findOutRow(struct SimplexTable *st);
+uint32_t findInCol(struct SimplexTable *st, uint32_t row);
+
 
 int main(int argn, char *args[])
 {
@@ -63,10 +71,12 @@ int main(int argn, char *args[])
     	printf("Failed to parse %s :(\n", args[1]);
     	return 0;
     }
+
+    return 0;
 }
 
 
-int parseSimplexFile(struct SymplexTable *st, FILE* sf, char delim)
+int parseSimplexFile(struct SimplexTable *st, FILE* sf, char delim)
 {
 	char *line = NULL;
 	size_t len = 0;
@@ -131,10 +141,22 @@ int parseSimplexFile(struct SymplexTable *st, FILE* sf, char delim)
 	st->x_base_cols_i = st->base_cols_i+st->base_cols;
 
 	st->cols = st->init_cols+st->base_cols+st->x_base_cols+1; // 1 for definitions
-	st->whole_matrix = (double**)calloc(st->rows, sizeof(double*));
+
+	st->tables = (double***)calloc(st->rows, sizeof(double**));
 	for(int i=0; i<st->rows; i++)
-		st->whole_matrix[i] = (double*)calloc(st->cols, sizeof(double));
-	st->base_indexes = (uint32_t*)calloc(st->base_rows, sizeof(uint32_t));
+	{
+		st->tables[i] = (double**)calloc(st->rows, sizeof(double*));
+		for(int j=0; j<st->rows; j++)
+			st->tables[i][j] = (double*)calloc(st->cols, sizeof(double));
+	}
+	st->last_table_i = 0;
+	st->last_table = st->tables[st->last_table_i];
+
+	st->base_indexes_table = (uint32_t**)calloc(st->rows, sizeof(uint32_t*));
+	for(int i=0; i< st->rows; i++)
+		st->base_indexes_table[i] = (uint32_t*)calloc(st->base_rows, sizeof(uint32_t));
+	st->base_indexes = st->base_indexes_table[st->last_table_i];
+
 	st->func_vector = (double*)calloc(st->cols, sizeof(double));
 	st->func_vector[0] = (double)st->mode; // not really used, but it will align data
 
@@ -144,26 +166,28 @@ int parseSimplexFile(struct SymplexTable *st, FILE* sf, char delim)
 	int x_basis_counter = 0;
 	for(int i=1; i<st->rows; i++)
 	{
-		st->whole_matrix[i-1][0] = atof(sep_text[i][st->init_cols+1]);
+		st->last_table[i-1][0] = atof(sep_text[i][st->init_cols+1]);
 		for(int j=0; j<st->init_cols; j++)
-			st->whole_matrix[i-1][j+1] = atof(sep_text[i][j]);
-		st->whole_matrix[i-1][st->base_cols_i+i-1] = 1;
+			st->last_table[i-1][j+1] = atof(sep_text[i][j]);
+		st->last_table[i-1][st->base_cols_i+i-1] = 1;
 		if(strcmp("<=", sep_text[i][st->init_cols]))
 			st->func_vector[st->base_cols_i+i-1] = st->M;
 		if(!strcmp(">=", sep_text[i][st->init_cols]))
-			st->whole_matrix[i-1][st->x_base_cols_i+x_basis_counter++] = -1;
+			st->last_table[i-1][st->x_base_cols_i+x_basis_counter++] = -1;
 	}
 	for(int i=0; i<st->base_rows; i++)
 		st->base_indexes[i] = st->base_cols_i + i;
-	st->whole_matrix[st->base_rows][0] = 0;
+	st->last_table[st->base_rows][0] = 0;
 	for(int j=0; j<st->base_rows; j++)
-		st->whole_matrix[st->base_rows][0]+=st->func_vector[st->base_indexes[j]]*st->whole_matrix[j][0];
+		st->last_table[st->base_rows][0]+=st->func_vector[st->base_indexes[j]]*st->last_table[j][0];
 	for(int i=1; i<st->cols; i++)
 	{
-		st->whole_matrix[st->base_rows][i] = -st->func_vector[i];
+		st->last_table[st->base_rows][i] = -st->func_vector[i];
 		for(int j=0; j<st->base_rows; j++)
-			st->whole_matrix[st->base_rows][i]+=st->func_vector[st->base_indexes[j]]*st->whole_matrix[j][i];
+			st->last_table[st->base_rows][i]+=st->func_vector[st->base_indexes[j]]*st->last_table[j][i];
 	}
+
+	st->ready_to_use = 1;
 
 	// Free dat space
 	if(st_info)
@@ -175,6 +199,24 @@ int parseSimplexFile(struct SymplexTable *st, FILE* sf, char delim)
 		free(sep_text);
 	return 0;
 }
+
+int getNextSimplexTable(struct SimplexTable *st)
+{
+	uint32_t out_row = findOutRow(st);
+	if(out_row == UINT32_MAX)
+		return 1;
+	uint32_t in_col = findInCol(st, out_row);
+	if(in_col == UINT32_MAX)
+		return 1;
+
+	for(int i=0; i<st->rows; i++)
+		for(int j=0; j<st->cols; j++)
+			st->tables[st->last_table_i][i][j] = st->last_table[i][j] - (st->last_table[out_row][j]*st->last_table[i][in_col])/st->last_table[out_row][in_col];
+	st->last_table_i++;
+	st->last_table = st->tables[st->last_table_i];
+	return 0;
+}
+
 
 
 uint32_t calcDimention(char *line, char delim)
