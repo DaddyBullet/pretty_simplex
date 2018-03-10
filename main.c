@@ -5,6 +5,7 @@
  *      Author: antonbogovis
  */
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
@@ -12,7 +13,12 @@
 struct SymplexTable{
 	uint32_t rows;
 	uint32_t cols;
+	uint32_t init_cols;
+	uint32_t init_cols_i;
 	uint32_t base_cols;
+	uint32_t base_cols_i;
+	uint32_t x_base_cols;
+	uint32_t x_base_cols_i;
 	uint32_t base_rows;
 	uint8_t mode;
 	uint32_t simplex_diference; // row index
@@ -27,6 +33,8 @@ struct SymplexTable{
 
 int parseSimplexFile(struct SymplexTable *st, FILE* simplex_file, char delim);
 uint32_t calcDimention(char *line, char delim);
+char*** separateText(char ***text_p, size_t rows, char delimiter);
+char* cutDelim(char **line_p, char delimiter);
 
 int main(int argn, char *args[])
 {
@@ -63,45 +71,144 @@ int parseSimplexFile(struct SymplexTable *st, FILE* sf, char delim)
 	size_t len = 0;
 	st->rows = 0;
 	st->base_rows = 0;
-	while(getline(&line, &len, sf))
+	while(getline(&line, &len, sf) != -1)
 		st->rows++;
 
-	if(!st->rows)
+	if(!(st->rows))
 		return 1;
 	st->base_rows = st->rows-1;
 
 	fseek(sf, 0, SEEK_SET);
 	getdelim(&line, &len, delim, sf);
-	line[sizeof(line)-2]='\0'; // cut delimiter
+	cutDelim(&line, delim);// cut delimiter
 	if(!strcmp(line, "max"))
 		st->mode = 0;
 	else if(!strcmp(line, "min"))
 		st->mode = 1;
 	else
 		return 1; //failed to parse
+
 	getline(&line, &len, sf);
-	st->base_cols = calcDimention(line, delim);
-	if(!st->base_cols)
+	st->init_cols = calcDimention(line, delim);
+	if(!st->init_cols)
 		return 1;
+	st->init_cols_i = 1;
+
+	char **st_info = NULL;
+	st_info = (char**)calloc(st->rows, sizeof(char*));
+	fseek(sf, 0, SEEK_SET);
+	for(int i=0; i<st->rows; i++)
+		getline(&st_info[i], &len, sf);
+
+	char ***sep_text = NULL;
+	sep_text = (char***)calloc(st->rows, sizeof(char**));
+	for(int i=0; i<st->rows; i++)
+		sep_text[i] = (char**)calloc(st->init_cols+2, sizeof(char*));
+
+	for(int i=0; i<st->rows; i++)
+		{
+			int j = 0;
+			int k = 1;
+			sep_text[i][0] = st_info[i];
+			while(st_info[i][j])
+			{
+				if(st_info[i][j] == delim)
+				{
+					st_info[i][j] = '\0';
+					sep_text[i][k]= &st_info[i][j+1];
+					k++;
+				}
+				j++;
+			}
+		}
+	st->base_cols = st->base_rows;
+	st->base_cols_i = st->init_cols_i+st->init_cols;
+	st->x_base_cols = 0;
+	for(int i=1; i<st->rows; i++)
+		if(!strcmp(sep_text[i][st->init_cols], ">="))
+			st->x_base_cols++;
+	st->x_base_cols_i = st->base_cols_i+st->base_cols;
+
+	st->cols = st->init_cols+st->base_cols+st->x_base_cols+1; // 1 for definitions
+	st->whole_matrix = (double**)calloc(st->rows, sizeof(double*));
+	for(int i=0; i<st->rows; i++)
+		st->whole_matrix[i] = (double*)calloc(st->cols, sizeof(double));
+	st->base_indexes = (uint32_t*)calloc(st->base_rows, sizeof(uint32_t));
+	st->func_vector = (double*)calloc(st->cols-1, sizeof(double)); // -1 for definitions
+
+	for(int i=1; i<st->rows; i++)
+	{
+		for(int j=0; j<st->init_cols+2; j++)
+		{
+			st->whole_matrix[i-1][j+1] = atof(sep_text[i][j]);
+		}
+	}
 
 
 
-
-
-
-
-
-
-
+	// Free dat space
+	if(st_info)
+		for(int i=0; i<st->rows; i++)
+			if(st_info[i])
+				free(st_info[i]);
+	free(st_info);
+	if(sep_text)
+		free(sep_text);
+	return 0;
 }
 
 
 uint32_t calcDimention(char *line, char delim)
 {
 	size_t retsize = 0;
-	while(strsep(&line, &delim))
-		retsize++; // TODO: might not work
+	do
+	{
+		if(!isspace(*(strsep(&line, &delim))))
+			retsize++;
+	}while(line);
 	return (uint32_t)retsize;
 
+}
+
+
+char*** separateText(char ***text_p, size_t rows, char delimiter)
+{
+	char **text = *text_p;
+	char ***result = (char***)(text);
+	for(int i=0; i<rows; i++)
+	{
+		int j = 0;
+		int k = 1;
+		result[i][0] = &text[i][0];
+		while(text[i][j])
+		{
+			if(text[i][j] == delimiter)
+			{
+				text[i][j] = '\0';
+				result[i][k]= &text[i][j+1];
+				k++;
+			}
+			j++;
+		}
+	}
+
+
+	return result;
+}
+
+char* cutDelim(char **line_p, char delimiter)
+{
+	char *line = *line_p;
+	int i = 0;
+	while(line[i])
+	{
+		if(line[i] == delimiter)
+		{
+			line[i] = '\0';
+			return line;
+		}
+	i++;
+	}
+	return line;
 }
 
