@@ -13,6 +13,7 @@ struct SymplexTable{
 	uint32_t rows;
 	uint32_t cols;
 	uint32_t base_cols;
+	uint32_t base_rows;
 	uint8_t mode;
 	uint32_t simplex_diference; // row index
 	uint8_t ready_to_use;
@@ -50,7 +51,7 @@ int main(int argn, char *args[])
     fclose(simplex_file);
     if(failed)
     {
-    	printf("Failed to parse %d :(\n", args[1]);
+    	printf("Failed to parse %s :(\n", args[1]);
     	return 0;
     }
 }
@@ -60,6 +61,16 @@ int parseSimplexFile(struct SymplexTable *st, FILE* sf, char delim)
 {
 	char *line = NULL;
 	size_t len = 0;
+	st->rows = 0;
+	st->base_rows = 0;
+	while(getline(&line, &len, sf))
+		st->rows++;
+
+	if(!st->rows)
+		return 1;
+	st->base_rows = st->rows-1;
+
+	fseek(sf, 0, SEEK_SET);
 	getdelim(&line, &len, delim, sf);
 	line[sizeof(line)-2]='\0'; // cut delimiter
 	if(!strcmp(line, "max"))
@@ -68,10 +79,12 @@ int parseSimplexFile(struct SymplexTable *st, FILE* sf, char delim)
 		st->mode = 1;
 	else
 		return 1; //failed to parse
-	getline(&line, &len, delim, sf);
+	getline(&line, &len, sf);
 	st->base_cols = calcDimention(line, delim);
 	if(!st->base_cols)
 		return 1;
+
+
 
 
 
@@ -86,7 +99,7 @@ int parseSimplexFile(struct SymplexTable *st, FILE* sf, char delim)
 uint32_t calcDimention(char *line, char delim)
 {
 	size_t retsize = 0;
-	while(strcmp(strsep(&line, &delim), "\n"))
+	while(strsep(&line, &delim))
 		retsize++; // TODO: might not work
 	return (uint32_t)retsize;
 
