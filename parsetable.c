@@ -90,8 +90,8 @@ int parseSimplexFile(struct SimplexTable *st, FILE* sf, char delim)
 	st->last_table = st->tables[st->last_table_i];
 	st->tables_quan = st->cols;
 
-	st->base_indexes_table = (uint32_t**)calloc(st->rows, sizeof(uint32_t*));
-	for(int i=0; i< st->rows; i++)
+	st->base_indexes_table = (uint32_t**)calloc(st->cols, sizeof(uint32_t*));
+	for(int i=0; i<st->cols; i++)
 		st->base_indexes_table[i] = (uint32_t*)calloc(st->base_rows, sizeof(uint32_t));
 	st->base_indexes = st->base_indexes_table[st->last_table_i];
 
