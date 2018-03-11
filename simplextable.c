@@ -11,15 +11,18 @@ int getNextSimplexTable(struct SimplexTable *st)
 {
 	uint32_t in_col = findInCol(st);
 	if(in_col == UINT32_MAX)
+	{
+		if(st->last_table[st->base_rows][0] < 0)
+			return -1;
 		return 0;
+	}
 
 	uint32_t out_row = findOutRow(st, in_col);
 	if(out_row == UINT32_MAX)
 		return -1;
 
 	if(st->last_table_i+1 >= st->tables_quan)
-	{
-	}
+		expandTables(st);
 
 
 	for(int i=0; i<st->rows; i++)
@@ -111,4 +114,23 @@ void expandTables(struct SimplexTable *st)
 	for(int i=st->last_table_i+1; i<st->tables_quan; i++)
 		st->base_indexes_table[i] = (uint32_t*)calloc(st->base_rows, sizeof(uint32_t));
 
+}
+
+void printTables(struct SimplexTable *st)
+{
+	if(!st->ready_to_use)
+		return;
+
+	for(int i=0; i<st->last_table_i+1; i++)
+	{
+		for(int j=0; j<st->rows; j++)
+		{
+			for(int k=0; k<st->cols; k++)
+				printf("%g,", st->tables[i][j][k]);
+			printf("\n");
+		}
+		for(int j=0; j<st->base_rows; j++)
+			printf("%d,", st->base_indexes_table[i][j]);
+		printf("\n\n");
+	}
 }

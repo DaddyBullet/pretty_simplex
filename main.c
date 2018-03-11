@@ -6,6 +6,7 @@
  */
 
 #include <stdio.h>
+#include <time.h>
 
 #include "simplextable.h"
 #include "parsetable.h"
@@ -37,14 +38,23 @@ int main(int argn, char *args[])
     	return 0;
     }
 
+    clock_t begin = clock();
     int result = 0;
     do
     	result = getNextSimplexTable(&st);
     while(result == 1);
+    clock_t end = clock();
     if(result == 0)
     	printf("Success\n");
     if(result == -1)
     	printf("Fiasco\n");
+
+
+    double time_spent = (double)(end - begin)*1000./CLOCKS_PER_SEC;
+
+    printTables(&st);
+
+    printf("Time escalated: %gms\n", time_spent);
 
     freeSimplexTable(&st);
     return 0;

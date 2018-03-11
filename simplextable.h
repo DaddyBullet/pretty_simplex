@@ -42,6 +42,8 @@ int getNextSimplexTable(struct SimplexTable *st);
 uint32_t findOutRow(struct SimplexTable *st, uint32_t col);
 uint32_t findInCol(struct SimplexTable *st);
 
+void printTables(struct SimplexTable *st);
+
 void expandTables(struct SimplexTable *st);
 
 void freeSimplexTable(struct SimplexTable *st);
