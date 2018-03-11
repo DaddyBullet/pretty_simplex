@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
+#include <float.h>
 
 struct SimplexTable{
 	uint32_t rows;
@@ -41,8 +42,8 @@ char* cutDelim(char **line_p, char delimiter);
 double findMax(double* arr, size_t size);
 
 int getNextSimplexTable(struct SimplexTable *st);
-uint32_t findOutRow(struct SimplexTable *st);
-uint32_t findInCol(struct SimplexTable *st, uint32_t row);
+uint32_t findOutRow(struct SimplexTable *st, uint32_t col);
+uint32_t findInCol(struct SimplexTable *st);
 
 
 int main(int argn, char *args[])
@@ -71,6 +72,16 @@ int main(int argn, char *args[])
     	printf("Failed to parse %s :(\n", args[1]);
     	return 0;
     }
+
+    int result = 0;
+    do
+    {
+    	result = getNextSimplexTable(&st);
+    }while(result == 1);
+    if(result == 0)
+    	printf("Success\n");
+    if(result == -1)
+    	printf("Fiasco\n");
 
     return 0;
 }
@@ -142,8 +153,8 @@ int parseSimplexFile(struct SimplexTable *st, FILE* sf, char delim)
 
 	st->cols = st->init_cols+st->base_cols+st->x_base_cols+1; // 1 for definitions
 
-	st->tables = (double***)calloc(st->rows, sizeof(double**));
-	for(int i=0; i<st->rows; i++)
+	st->tables = (double***)calloc(st->cols, sizeof(double**));
+	for(int i=0; i<st->cols; i++)
 	{
 		st->tables[i] = (double**)calloc(st->rows, sizeof(double*));
 		for(int j=0; j<st->rows; j++)
@@ -151,6 +162,7 @@ int parseSimplexFile(struct SimplexTable *st, FILE* sf, char delim)
 	}
 	st->last_table_i = 0;
 	st->last_table = st->tables[st->last_table_i];
+	st->tables_quan = st->cols;
 
 	st->base_indexes_table = (uint32_t**)calloc(st->rows, sizeof(uint32_t*));
 	for(int i=0; i< st->rows; i++)
@@ -202,19 +214,41 @@ int parseSimplexFile(struct SimplexTable *st, FILE* sf, char delim)
 
 int getNextSimplexTable(struct SimplexTable *st)
 {
-	uint32_t out_row = findOutRow(st);
-	if(out_row == UINT32_MAX)
-		return 1;
-	uint32_t in_col = findInCol(st, out_row);
+	uint32_t in_col = findInCol(st);
 	if(in_col == UINT32_MAX)
-		return 1;
+		return 0;
+
+	uint32_t out_row = findOutRow(st, in_col);
+	if(out_row == UINT32_MAX)
+		return -1;
+
+	if(st->last_table_i+1 >= st->tables_quan)
+	{
+		st->tables = (double***)realloc(st->tables, sizeof(double**) * st->tables_quan * 2);
+		st->tables_quan *= 2;
+		for(int i=st->last_table_i+1; i<st->tables_quan; i++)
+		{
+			st->tables[i] = (double**)calloc(st->rows, sizeof(double*));
+			for(int j=0; j<st->rows; j++)
+				st->tables[i][j] = (double*)calloc(st->cols, sizeof(double));
+		}
+	}
+
 
 	for(int i=0; i<st->rows; i++)
 		for(int j=0; j<st->cols; j++)
-			st->tables[st->last_table_i][i][j] = st->last_table[i][j] - (st->last_table[out_row][j]*st->last_table[i][in_col])/st->last_table[out_row][in_col];
+			st->tables[st->last_table_i+1][i][j] = st->last_table[i][j] - (st->last_table[out_row][j]*st->last_table[i][in_col])/st->last_table[out_row][in_col];
+	for(int i=0; i<st->cols; i++)
+		st->tables[st->last_table_i+1][out_row][i] = st->last_table[out_row][i]/st->last_table[out_row][in_col];
+	for(int i=0; i<st->rows; i++)
+		st->tables[st->last_table_i+1][i][in_col] = 0;
+	st->tables[st->last_table_i+1][out_row][in_col] = 1;
 	st->last_table_i++;
 	st->last_table = st->tables[st->last_table_i];
-	return 0;
+	memcpy(st->base_indexes_table[st->last_table_i], st->base_indexes, sizeof(uint32_t)*(st->rows-1));
+	st->base_indexes_table[st->last_table_i][out_row] = in_col;
+	st->base_indexes = st->base_indexes_table[st->last_table_i];
+	return 1;
 }
 
 
@@ -282,3 +316,28 @@ double findMax(double* arr, size_t size)
 	return max;
 }
 
+uint32_t findInCol(struct SimplexTable *st)
+{
+	double local_min = 0;
+	uint32_t ret_i = UINT32_MAX;
+	for(int i=1; i<st->cols; i++)
+		if(st->last_table[st->base_rows][i]*st->mode > local_min)
+		{
+			local_min = st->last_table[st->base_rows][i]*st->mode;
+			ret_i = i;
+		}
+	return ret_i;
+}
+
+uint32_t findOutRow(struct SimplexTable *st, uint32_t col)
+{
+	double local_min = DBL_MAX;
+	uint32_t ret_i = UINT32_MAX;
+	for(int i=0; i<st->base_rows; i++)
+		if(st->last_table[i][col] > 0 && st->last_table[i][0]/st->last_table[i][col] < local_min)
+		{
+			local_min = st->last_table[i][0]/st->last_table[i][col];
+			ret_i = i;
+		}
+	return ret_i;
+}
