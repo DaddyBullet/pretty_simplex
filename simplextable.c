@@ -173,10 +173,44 @@ void printResults(struct SimplexTable *st, FILE* out)
 	{
 		row = findInBasis(st, i);
 		fprintf(out, "x%d:,", i);
-		if(!row)
+		if(row == UINT32_MAX)
 			fprintf(out, "0\n");
-		fprintf(out, "%g\n", st->last_table[row][0]);
+		else
+			fprintf(out, "%g\n", st->last_table[row][0]);
 	}
+	fprintf(out, "\n");
+}
+
+void printSensitivity(struct SimplexTable *st, FILE* out)
+{
+	if(!st->ready_to_use)
+		return;
+	if(!out)
+		out = stdout;
+
+	fprintf(out, "Sensitivity of the solution:\n");
+	for(int i=st->base_cols_i; i<st->x_base_cols_i; i++)
+		if(st->func_vector[i] != st->M)
+		{
+			if(st->last_table[st->base_rows][i] == 0)
+				fprintf(out, "A%d:,Can be reduced from,%g,to,%g\n", i-st->base_cols_i+1, st->tables[0][i-st->base_cols_i][0], expenses(st, i));
+			else
+				fprintf(out, "A%d:,Potential growth,%g\n", i-st->base_cols_i+1, st->last_table[st->base_rows][i]);
+		}
+	fprintf(out, "\n");
+}
+
+double expenses(struct SimplexTable *st, uint32_t col)
+{
+	uint32_t row = 0;
+	double retsum = 0;
+	for(int i=st->init_cols_i; i<st->base_cols_i; i++)
+	{
+		row = findInBasis(st, i);
+		if(row != UINT32_MAX)
+			retsum += st->last_table[row][0]*st->tables[0][col-st->base_cols_i][i];
+	}
+	return retsum;
 }
 
 uint32_t findInBasis(struct SimplexTable *st, uint32_t col)
@@ -184,7 +218,7 @@ uint32_t findInBasis(struct SimplexTable *st, uint32_t col)
 	for(int i=0; i<st->base_rows; i++)
 		if(st->base_indexes[i] == col)
 			return i;
-	return 0;
+	return UINT32_MAX;
 }
 
 int resultReal(struct SimplexTable *st)

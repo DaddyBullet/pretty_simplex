@@ -67,6 +67,7 @@ int main(int argn, char *args[])
     printInitFunc(&st, output);
     printTables(&st, output);
     printResults(&st, output);
+    printSensitivity(&st, output);
 
     fprintf(output, "Time escalated: %gms\n", time_spent);
 

@@ -44,8 +44,10 @@ uint32_t findInCol(struct SimplexTable *st);
 void printInitFunc(struct SimplexTable *st, FILE* out);
 void printTables(struct SimplexTable *st, FILE* out);
 void printResults(struct SimplexTable *st, FILE* out);
+void printSensitivity(struct SimplexTable *st, FILE* out);
 
 uint32_t findInBasis(struct SimplexTable *st, uint32_t col);
+double expenses(struct SimplexTable *st, uint32_t col);
 
 void expandTables(struct SimplexTable *st);
 
