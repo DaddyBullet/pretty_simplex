@@ -25,7 +25,6 @@ struct SimplexTable{
 	uint32_t x_base_cols_i;
 	uint32_t base_rows;
 	int8_t mode;
-	uint32_t simplex_diference; // row index
 	uint8_t ready_to_use;
 	uint16_t last_table_i;
 	uint16_t tables_quan;
@@ -42,10 +41,15 @@ int getNextSimplexTable(struct SimplexTable *st);
 uint32_t findOutRow(struct SimplexTable *st, uint32_t col);
 uint32_t findInCol(struct SimplexTable *st);
 
-void printTables(struct SimplexTable *st);
+void printInitFunc(struct SimplexTable *st, FILE* out);
+void printTables(struct SimplexTable *st, FILE* out);
+void printResults(struct SimplexTable *st, FILE* out);
+
+uint32_t findInBasis(struct SimplexTable *st, uint32_t col);
 
 void expandTables(struct SimplexTable *st);
 
 void freeSimplexTable(struct SimplexTable *st);
+int resultReal(struct SimplexTable *st);
 
 #endif /* SIMPLEXTABLE_H_ */

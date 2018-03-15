@@ -12,9 +12,9 @@ int getNextSimplexTable(struct SimplexTable *st)
 	uint32_t in_col = findInCol(st);
 	if(in_col == UINT32_MAX)
 	{
-		if(st->last_table[st->base_rows][0] < 0)
-			return -1;
-		return 0;
+		if(resultReal(st))
+			return 0;
+		return -1;
 	}
 
 	uint32_t out_row = findOutRow(st, in_col);
@@ -116,21 +116,81 @@ void expandTables(struct SimplexTable *st)
 
 }
 
-void printTables(struct SimplexTable *st)
+void printTables(struct SimplexTable *st, FILE *out)
 {
 	if(!st->ready_to_use)
 		return;
+	if(out == NULL)
+		out = stdout;
+	if(!resultReal(st))
+	{
+		fprintf(out, "No optimal results!");
+		return;
+	}
 
 	for(int i=0; i<st->last_table_i+1; i++)
 	{
-		for(int j=0; j<st->rows; j++)
-		{
-			for(int k=0; k<st->cols; k++)
-				printf("%g,", st->tables[i][j][k]);
-			printf("\n");
-		}
+		fprintf(out, "Bx,val,");
+		for(int i=1; i<st->cols; i++)
+			fprintf(out, "A%d,", i);
+		fprintf(out, "\n");
 		for(int j=0; j<st->base_rows; j++)
-			printf("%d,", st->base_indexes_table[i][j]);
-		printf("\n\n");
+		{
+			fprintf(out, "x%d,", st->base_indexes_table[i][j]);
+			for(int k=0; k<st->cols; k++)
+				fprintf(out, "%g,", st->tables[i][j][k]);
+			fprintf(out, "\n");
+		}
+		fprintf(out, "delta,");
+		for(int j=0; j<st->cols; j++)
+			fprintf(out, "%g,", st->tables[i][st->base_rows][j]);
+		fprintf(out, "\n\n");
 	}
+}
+
+void printInitFunc(struct SimplexTable *st, FILE *out)
+{
+	if(!st->ready_to_use)
+		return;
+	if(!out)
+		out = stdout;
+	fprintf(out, "f:,");
+	fprintf(out, "%g*x%d,", st->func_vector[1], 1);
+	for(int i=st->init_cols_i+1; i<st->base_cols_i; i++)
+		fprintf(out, "%+g*x%d,", st->func_vector[i], i);
+	fprintf(out, "->,%s", st->mode==-1?"max\n\n":"min\n\n");
+}
+
+void printResults(struct SimplexTable *st, FILE* out)
+{
+	if(!st->ready_to_use)
+		return;
+	if(!out)
+		out = stdout;
+	fprintf(out, "Optimal function value:,%g\n", st->last_table[st->base_rows][0]);
+	uint32_t row=0;
+	for(int i=st->init_cols_i; i<st->base_cols_i; i++)
+	{
+		row = findInBasis(st, i);
+		fprintf(out, "x%d:,", i);
+		if(!row)
+			fprintf(out, "0\n");
+		fprintf(out, "%g\n", st->last_table[row][0]);
+	}
+}
+
+uint32_t findInBasis(struct SimplexTable *st, uint32_t col)
+{
+	for(int i=0; i<st->base_rows; i++)
+		if(st->base_indexes[i] == col)
+			return i;
+	return 0;
+}
+
+int resultReal(struct SimplexTable *st)
+{
+	for(int i=0; i<st->base_rows; i++)
+		if(st->func_vector[st->base_indexes[i]] == st->M && st->last_table[i][0] > 0.)
+			return 0;
+	return 1;
 }
