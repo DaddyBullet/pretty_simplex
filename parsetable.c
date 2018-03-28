@@ -108,10 +108,14 @@ int parseSimplexFile(struct SimplexTable *st, FILE* sf, char delim)
 		for(int j=0; j<st->init_cols; j++)
 			st->last_table[i-1][j+1] = atof(sep_text[i][j]);
 		st->last_table[i-1][st->base_cols_i+i-1] = 1;
-		if(strcmp("<=", sep_text[i][st->init_cols]))
+		if(!strcmp("=", sep_text[i][st->init_cols]))
 			st->func_vector[st->base_cols_i+i-1] = st->M;
 		if(!strcmp(">=", sep_text[i][st->init_cols]))
-			st->last_table[i-1][st->x_base_cols_i+x_basis_counter++] = -1;
+		{
+			st->last_table[i-1][st->x_base_cols_i+x_basis_counter++] = 1;
+			st->last_table[i-1][st->base_cols_i+i-1] = -1;
+			st->func_vector[st->x_base_cols_i+x_basis_counter-1] = st->M;
+		}
 	}
 	for(int i=0; i<st->base_rows; i++)
 		st->base_indexes[i] = st->base_cols_i + i;

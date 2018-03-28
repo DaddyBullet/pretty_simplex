@@ -132,7 +132,7 @@ void printTables(struct SimplexTable *st, FILE *out)
 	{
 		fprintf(out, "Bx,val,");
 		for(int i=1; i<st->cols; i++)
-			fprintf(out, "A%d,", i);
+			fprintf(out, "x%d,", i);
 		fprintf(out, "\n");
 		for(int j=0; j<st->base_rows; j++)
 		{
@@ -193,24 +193,26 @@ void printSensitivity(struct SimplexTable *st, FILE* out)
 		if(st->func_vector[i] != st->M)
 		{
 			if(st->last_table[st->base_rows][i] == 0)
-				fprintf(out, "A%d:,Can be reduced from,%g,to,%g\n", i-st->base_cols_i+1, st->tables[0][i-st->base_cols_i][0], expenses(st, i));
+				fprintf(out, "A%d:,Can be %s from,%g,to,%g\n", i-st->base_cols_i+1, st->tables[0][i-st->base_cols_i][i] == -1? "increased": "reduced", st->tables[0][i-st->base_cols_i][0], expenses(st, i));
 			else
-				fprintf(out, "A%d:,Potential growth,%g\n", i-st->base_cols_i+1, st->last_table[st->base_rows][i]);
+				fprintf(out, "A%d:,Potential %s,%g\n", i-st->base_cols_i+1, (st->tables[0][i-st->base_cols_i][i] == 1?"growth":"reduces"), st->last_table[st->base_rows][i]);
 		}
+//	for(int i=st->x_base_cols_i; i<st->cols; i++)
+//		if(st->func_vector[i] != st->M)
+//		{
+//			if(st->last_table[st->base_rows][i] == 0)
+//				fprintf(out, "A%d:,Can be increased from,%g,to,%g\n", i-st->base_cols_i-st->x_base_cols+1, st->tables[0][i-st->base_cols_i-st->x_base_cols][0], expenses(st, i));
+//			else
+//				fprintf(out, "A%d:,Potential %s,%g\n", i-st->base_cols_i-st->x_base_cols+1, (st->mode==-1?"losses":"increases"), st->last_table[st->base_rows][i]);
+//		}
+
 	fprintf(out, "\n");
 }
 
 double expenses(struct SimplexTable *st, uint32_t col)
 {
-	uint32_t row = 0;
-	double retsum = 0;
-	for(int i=st->init_cols_i; i<st->base_cols_i; i++)
-	{
-		row = findInBasis(st, i);
-		if(row != UINT32_MAX)
-			retsum += st->last_table[row][0]*st->tables[0][col-st->base_cols_i][i];
-	}
-	return retsum;
+	uint32_t row = findInBasis(st, col);
+	return st->last_table[row][0];
 }
 
 uint32_t findInBasis(struct SimplexTable *st, uint32_t col)
