@@ -40,14 +40,17 @@ struct SimplexTable{
 
 int getNextSimplexTableBy(struct SimplexTable *st, uint32_t out_row, uint32_t in_col);
 int getNextSimplexTable(struct SimplexTable *st);
+int getOptimalReversSimplex(struct SimplexTable *st);
 uint32_t findOutRow(struct SimplexTable *st, uint32_t col);
 uint32_t findInCol(struct SimplexTable *st);
+uint32_t findInRow(struct SimplexTable *st);
+uint32_t findOutCol(struct SimplexTable *st, uint32_t row);
 
 struct SimplexTable* copyTable(struct SimplexTable *st);
 struct SimplexTable* copyLastTable(struct SimplexTable *st);
 struct SimplexTable* initLimitation(struct SimplexTable *st);
-struct SimplexTable* branch(struct SimplexTable *st, uint32_t row);
-uint32_t checkBranch(struct SimplexTable *st);
+struct SimplexTable* branch(struct SimplexTable *st, uint32_t row, uint32_t last_index);
+uint32_t checkBranch(struct SimplexTable *st, uint32_t last_index);
 int getIntegerSolution(struct SimplexTable *st);
 
 

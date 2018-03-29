@@ -28,21 +28,20 @@ int getNextSimplexTableBy(struct SimplexTable *st, uint32_t out_row, uint32_t in
 	if(st->last_table_i+1 >= st->tables_quan)
 			expandTables(st);
 
-
-		for(int i=0; i<st->rows; i++)
-			for(int j=0; j<st->cols; j++)
-				st->tables[st->last_table_i+1][i][j] = st->last_table[i][j] - (st->last_table[out_row][j]*st->last_table[i][in_col])/st->last_table[out_row][in_col];
-		for(int i=0; i<st->cols; i++)
-			st->tables[st->last_table_i+1][out_row][i] = st->last_table[out_row][i]/st->last_table[out_row][in_col];
-		for(int i=0; i<st->rows; i++)
-			st->tables[st->last_table_i+1][i][in_col] = 0;
-		st->tables[st->last_table_i+1][out_row][in_col] = 1;
-		st->last_table_i++;
-		st->last_table = st->tables[st->last_table_i];
-		memcpy(st->base_indexes_table[st->last_table_i], st->base_indexes, sizeof(uint32_t)*(st->rows-1));
-		st->base_indexes_table[st->last_table_i][out_row] = in_col;
-		st->base_indexes = st->base_indexes_table[st->last_table_i];
-		return 1;
+	for(int i=0; i<st->rows; i++)
+		for(int j=0; j<st->cols; j++)
+			st->tables[st->last_table_i+1][i][j] = st->last_table[i][j] - (st->last_table[out_row][j]*st->last_table[i][in_col])/st->last_table[out_row][in_col];
+	for(int i=0; i<st->cols; i++)
+		st->tables[st->last_table_i+1][out_row][i] = st->last_table[out_row][i]/st->last_table[out_row][in_col];
+	for(int i=0; i<st->rows; i++)
+		st->tables[st->last_table_i+1][i][in_col] = 0;
+	st->tables[st->last_table_i+1][out_row][in_col] = 1;
+	st->last_table_i++;
+	st->last_table = st->tables[st->last_table_i];
+	memcpy(st->base_indexes_table[st->last_table_i], st->base_indexes, sizeof(uint32_t)*(st->rows-1));
+	st->base_indexes_table[st->last_table_i][out_row] = in_col;
+	st->base_indexes = st->base_indexes_table[st->last_table_i];
+	return 1;
 }
 
 
@@ -117,7 +116,6 @@ void expandTables(struct SimplexTable *st)
 	st->base_indexes_table = (uint32_t**)realloc(st->base_indexes_table, sizeof(uint32_t*) * st->tables_quan);
 	for(int i=st->last_table_i+1; i<st->tables_quan; i++)
 		st->base_indexes_table[i] = (uint32_t*)calloc(st->base_rows, sizeof(uint32_t));
-
 }
 
 void printTables(struct SimplexTable *st, FILE *out)
@@ -294,16 +292,16 @@ struct SimplexTable* initLimitation(struct SimplexTable *st)
 	st_c->base_cols++;
 	st_c->x_base_cols_i++;
 
-	st_c->tables = (double***)calloc(st_c->cols, sizeof(double**));
-	for(int i=0; i<st_c->cols; i++)
+	st_c->tables = (double***)calloc(st_c->tables_quan, sizeof(double**));
+	for(int i=0; i<st->tables_quan; i++)
 	{
 		st_c->tables[i] = (double**)calloc(st_c->rows, sizeof(double*));
 		for(int j=0; j<st_c->rows; j++)
 			st_c->tables[i][j] = (double*)calloc(st_c->cols, sizeof(double));
 	}
 	st_c->last_table = st_c->tables[st_c->last_table_i];
-	st_c->base_indexes_table = (uint32_t**)calloc(st_c->cols, sizeof(uint32_t*));
-	for(int i=0; i<st_c->cols; i++)
+	st_c->base_indexes_table = (uint32_t**)calloc(st->tables_quan, sizeof(uint32_t*));
+	for(int i=0; i<st->tables_quan; i++)
 		st_c->base_indexes_table[i] = (uint32_t*)calloc(st_c->base_rows, sizeof(uint32_t));
 
 	st_c->base_indexes = st_c->base_indexes_table[st_c->last_table_i];
@@ -317,20 +315,21 @@ struct SimplexTable* initLimitation(struct SimplexTable *st)
 		st_c->func_vector[i>=st->x_base_cols_i?i+1:i] = st->func_vector[i];
 
 	memcpy(st_c->base_indexes_table[0], st->base_indexes, st->base_rows*sizeof(uint32_t));
-	st_c->base_indexes_table[0][st_c->base_rows] = st->x_base_cols_i-1;
+	st_c->base_indexes_table[0][st_c->base_rows-1] = st_c->x_base_cols_i-1;
 
 	return st_c;
 }
 
-uint32_t checkBranch(struct SimplexTable *st)
+uint32_t checkBranch(struct SimplexTable *st, uint32_t last_index)
 {
-	for(int i=0; i<st->base_rows; i++)
-		if(st->last_table[i][0] != (double)((int)st->last_table[i][0]))
-			return i;
+	for(int i=1; i<last_index+1; i++)
+		if(findInBasis(st, i) != UINT32_MAX)
+			if(st->last_table[findInBasis(st, i)][0] != (double)((int)st->last_table[findInBasis(st, i)][0]))
+				return findInBasis(st, i);
 	return UINT32_MAX;
 }
 
-struct SimplexTable* branch(struct SimplexTable *st, uint32_t row)
+struct SimplexTable* branch(struct SimplexTable *st, uint32_t row, uint32_t last_index)
 {
 	struct SimplexTable *gst = initLimitation(st);
 	struct SimplexTable *lst = initLimitation(st);
@@ -340,18 +339,73 @@ struct SimplexTable* branch(struct SimplexTable *st, uint32_t row)
 
 	for(int i=0; i<st->cols; i++)
 	{
-		gst->last_table[gst->base_rows-1][i] = -gst->last_table[row][i];
-		lst->last_table[lst->base_rows-1][i] = lst->last_table[row][i];
+		lst->last_table[lst->base_rows-1][i] = -lst->last_table[row][i];
+		gst->last_table[gst->base_rows-1][i] = gst->last_table[row][i];
 	}
-	gst->last_table[gst->base_rows-1][0] += gnum;
-	lst->last_table[lst->base_rows-1][0] -= lnum;
+	gst->last_table[gst->base_rows-1][0] -= gnum;
+	lst->last_table[lst->base_rows-1][0] += lnum;
 	gst->last_table[gst->base_rows-1][gst->x_base_cols_i-1] += 1;
-	gst->last_table[gst->base_rows-1][gst->base_indexes[row]] += 1;
+	gst->last_table[gst->base_rows-1][gst->base_indexes[row]] -= 1;
 	lst->last_table[lst->base_rows-1][lst->x_base_cols_i-1] += 1;
-	lst->last_table[lst->base_rows-1][lst->base_indexes[row]] -= 1;
+	lst->last_table[lst->base_rows-1][lst->base_indexes[row]] += 1;
 
+	int resultg = getOptimalReversSimplex(gst);
+	int resultl = getOptimalReversSimplex(lst);
 
+	if(checkBranch(gst, last_index) == UINT32_MAX)
+		return gst;
+	if(checkBranch(lst, last_index) == UINT32_MAX)
+			return lst;
 
+	if(resultg && resultl)
+		return gst->last_table[gst->base_rows][0]>lst->last_table[lst->base_rows][0]?gst:lst;
+	if(resultg)
+		return gst;
+	if(resultl)
+		return lst;
+	return NULL;
+}
 
+uint32_t findInRow(struct SimplexTable *st)
+{
+	uint32_t row = UINT32_MAX;
+	double local_max = 0;
+	for(int i=0; i<st->base_rows; i++)
+		if(st->last_table[i][0] < local_max)
+		{
+			row = i;
+			local_max = st->last_table[i][0];
+		}
+	return row;
+}
+
+uint32_t findOutCol(struct SimplexTable *st, uint32_t row)
+{
+	uint32_t col = UINT32_MAX;
+	double delta = -DBL_MAX;
+	for(int i=1; i<st->x_base_cols_i; i++)
+		if(st->last_table[row][i] < 0 && st->last_table[st->base_rows][i]/st->last_table[row][i] > delta)
+		{
+			delta = st->last_table[st->base_rows][i]/st->last_table[row][i];
+			col = i;
+		}
+	return col;
+}
+
+int getOptimalReversSimplex(struct SimplexTable *st)
+{
+	int result = 0;
+
+	do{
+		uint32_t in_row = findInRow(st);
+		if(in_row == UINT32_MAX)
+			return 1;
+		uint32_t out_col = findOutCol(st, in_row);
+		if(out_col == UINT32_MAX)
+			return 0;
+		getNextSimplexTableBy(st, in_row, out_col);
+	}while(1);
+
+	return result;
 }
 
