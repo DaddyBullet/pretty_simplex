@@ -117,8 +117,9 @@ int parseSimplexFile(struct SimplexTable *st, FILE* sf, char delim)
 			st->func_vector[st->x_base_cols_i+x_basis_counter-1] = st->M;
 		}
 	}
+	x_basis_counter = 0;
 	for(int i=0; i<st->base_rows; i++)
-		st->base_indexes[i] = st->base_cols_i + i;
+		st->base_indexes[i] = st->last_table[i][st->base_cols_i+i] == -1? st->x_base_cols_i+x_basis_counter++: st->base_cols_i + i;
 	st->last_table[st->base_rows][0] = 0;
 	for(int j=0; j<st->base_rows; j++)
 		st->last_table[st->base_rows][0]+=st->func_vector[st->base_indexes[j]]*st->last_table[j][0];
