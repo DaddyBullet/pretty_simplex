@@ -37,9 +37,19 @@ struct SimplexTable{
 	uint32_t *base_indexes;
 }st;
 
+
+int getNextSimplexTableBy(struct SimplexTable *st, uint32_t out_row, uint32_t in_col);
 int getNextSimplexTable(struct SimplexTable *st);
 uint32_t findOutRow(struct SimplexTable *st, uint32_t col);
 uint32_t findInCol(struct SimplexTable *st);
+
+struct SimplexTable* copyTable(struct SimplexTable *st);
+struct SimplexTable* copyLastTable(struct SimplexTable *st);
+struct SimplexTable* initLimitation(struct SimplexTable *st);
+struct SimplexTable* branch(struct SimplexTable *st, uint32_t row);
+uint32_t checkBranch(struct SimplexTable *st);
+int getIntegerSolution(struct SimplexTable *st);
+
 
 void printInitFunc(struct SimplexTable *st, FILE* out);
 void printTables(struct SimplexTable *st, FILE* out);

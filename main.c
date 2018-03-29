@@ -75,14 +75,16 @@ int main(int argn, char *args[])
 
 
     double time_spent = (double)(end - begin)*1000./CLOCKS_PER_SEC;
+    struct SimplexTable *st_c = copyTable(&st);
 
-    printInitFunc(&st, output);
-    printTables(&st, output);
-    printResults(&st, output);
-    printSensitivity(&st, output);
+    printInitFunc(st_c, output);
+    printTables(st_c, output);
+    printResults(st_c, output);
+    printSensitivity(st_c, output);
 
     fprintf(output, "Time escalated: %gms\n", time_spent);
 
+    freeSimplexTable(st_c);
     freeSimplexTable(&st);
     fclose(output);
     return 0;
