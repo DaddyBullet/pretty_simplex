@@ -355,7 +355,7 @@ struct SimplexTable* branch(struct SimplexTable *st, uint32_t row, uint32_t last
 	if(checkBranch(gst, last_index) == UINT32_MAX)
 		return gst;
 	if(checkBranch(lst, last_index) == UINT32_MAX)
-			return lst;
+		return lst;
 
 	if(resultg && resultl)
 		return gst->last_table[gst->base_rows][0]>lst->last_table[lst->base_rows][0]?gst:lst;
