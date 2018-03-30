@@ -77,8 +77,8 @@ int main(int argn, char *args[])
     		printf("U r in a deep  shit boi!!");
     		break;
     	}
-    	printf("Branch %d,\n", iterr);
-    	printTables(next_branch, output);
+//    	printf("Branch %d,\n", iterr);
+//    	printTables(next_branch, output);
     	iterr++;
     }
     clock_t end = clock();
@@ -89,18 +89,17 @@ int main(int argn, char *args[])
 
 
     double time_spent = (double)(end - begin)*1000./CLOCKS_PER_SEC;
-    struct SimplexTable *st_c = copyTable(&st);
 
-//    printInitFunc(st_c, output);
-//    printTables(st_c, output);
+    printInitFunc(&st, output);
+    printTables(&st, output);
+    printResults(&st, output);
+    printSensitivity(&st, output);
     printResults(next_branch, output);
-//    printSensitivity(next_branch, output);
 
     fprintf(output, "Time escalated: %gms\n", time_spent);
 
-    freeSimplexTable(st_c);
     freeSimplexTable(&st);
-//    freeSimplexTable(next_branch);
+    freeSimplexTable(next_branch);
     fclose(output);
     return 0;
 }
