@@ -67,20 +67,20 @@ int main(int argn, char *args[])
     do
     	result = getNextSimplexTable(&st);
     while(result == 1);
-//    struct SimplexTable *next_branch = copyTable(&st);
-//    int iterr=0;
-//    while(checkBranch(next_branch, st.init_cols) != UINT32_MAX)
-//    {
-//    	next_branch = branch(next_branch, checkBranch(next_branch, st.init_cols), st.init_cols);
-//    	if(!next_branch)
-//    	{
-//    		printf("U r in a deep  shit boi!!");
-//    		break;
-//    	}
-//    	printf("Branch %d,\n", iterr);
-//    	printTables(next_branch, output);
-//    	iterr++;
-//    }
+    struct SimplexTable *next_branch = copyTable(&st);
+    int iterr=0;
+    while(checkBranch(next_branch, st.init_cols) != UINT32_MAX)
+    {
+    	next_branch = branch(next_branch, checkBranch(next_branch, st.init_cols), st.init_cols);
+    	if(!next_branch)
+    	{
+    		printf("U r in a deep  shit boi!!");
+    		break;
+    	}
+    	printf("Branch %d,\n", iterr);
+    	printTables(next_branch, output);
+    	iterr++;
+    }
     clock_t end = clock();
     if(result == 0)
     	printf("Success\n");
@@ -91,10 +91,10 @@ int main(int argn, char *args[])
     double time_spent = (double)(end - begin)*1000./CLOCKS_PER_SEC;
     struct SimplexTable *st_c = copyTable(&st);
 
-    printInitFunc(st_c, output);
-    printTables(st_c, output);
-    printResults(st_c, output);
-    printSensitivity(st_c, output);
+//    printInitFunc(st_c, output);
+//    printTables(st_c, output);
+    printResults(next_branch, output);
+//    printSensitivity(next_branch, output);
 
     fprintf(output, "Time escalated: %gms\n", time_spent);
 

@@ -13,6 +13,10 @@
 #include <stdint.h>
 #include <string.h>
 #include <float.h>
+#include <math.h>
+
+#define ROUND(x) ((double)((int)((x*1e6+0.5))))/1e6
+
 
 struct SimplexTable{
 	uint32_t rows;

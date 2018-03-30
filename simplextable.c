@@ -324,7 +324,7 @@ uint32_t checkBranch(struct SimplexTable *st, uint32_t last_index)
 {
 	for(int i=1; i<last_index+1; i++)
 		if(findInBasis(st, i) != UINT32_MAX)
-			if(st->last_table[findInBasis(st, i)][0] != (double)((int)st->last_table[findInBasis(st, i)][0]))
+			if((double)((int)st->last_table[findInBasis(st, i)][0]) != ROUND(st->last_table[findInBasis(st, i)][0]))
 				return findInBasis(st, i);
 	return UINT32_MAX;
 }
@@ -349,20 +349,46 @@ struct SimplexTable* branch(struct SimplexTable *st, uint32_t row, uint32_t last
 	lst->last_table[lst->base_rows-1][lst->x_base_cols_i-1] += 1;
 	lst->last_table[lst->base_rows-1][lst->base_indexes[row]] += 1;
 
+	freeSimplexTable(st);
+
 	int resultg = getOptimalReversSimplex(gst);
 	int resultl = getOptimalReversSimplex(lst);
 
 	if(checkBranch(gst, last_index) == UINT32_MAX)
+	{
+		freeSimplexTable(lst);
 		return gst;
+	}
 	if(checkBranch(lst, last_index) == UINT32_MAX)
+	{
+		freeSimplexTable(gst);
 		return lst;
+	}
 
 	if(resultg && resultl)
-		return gst->last_table[gst->base_rows][0]>lst->last_table[lst->base_rows][0]?gst:lst;
+	{
+		if(gst->last_table[gst->base_rows][0]>lst->last_table[lst->base_rows][0])
+		{
+			freeSimplexTable(lst);
+			return gst;
+		}
+		else
+		{
+			freeSimplexTable(gst);
+			return lst;
+		}
+//		return gst->last_table[gst->base_rows][0]>lst->last_table[lst->base_rows][0]? gst: lst;
+	}
 	if(resultg)
+	{
+		freeSimplexTable(lst);
 		return gst;
+	}
 	if(resultl)
+	{
+		freeSimplexTable(gst);
 		return lst;
+	}
 	return NULL;
 }
 
@@ -371,7 +397,7 @@ uint32_t findInRow(struct SimplexTable *st)
 	uint32_t row = UINT32_MAX;
 	double local_max = 0;
 	for(int i=0; i<st->base_rows; i++)
-		if(st->last_table[i][0] < local_max)
+		if(ROUND(st->last_table[i][0]) < local_max)
 		{
 			row = i;
 			local_max = st->last_table[i][0];
